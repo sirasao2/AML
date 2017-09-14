@@ -1,0 +1,356 @@
+---
+title: 'CS 498: Homework 1'
+author: "Spring 2017, Rahul Sirasao"
+output:
+  html_document:
+    theme: readable
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+## Exercise 3.1 (Pima Indians Classification)
+
+The UC Irvine machine learning data repository hosts a famous collection of
+data on whether a patient has diabetes (the Pima Indians dataset), originally
+owned by the National Institute of Diabetes and Digestive and Kidney Diseases
+and donated by Vincent Sigillito. This can be found at http://archive.ics.uci.
+edu/ml/datasets/Pima+Indians+Diabetes. This data has a set of attributes of
+patients, and a categorical variable telling whether the patient is diabetic or
+not. For several attributes
+
+a. Build a simple naive Bayes classifier to classify this data set. You should
+hold out 20% of the data for evaluation, and use the other 80% for training.
+You should use a normal distribution to model each of the class-conditional
+distributions. You should write this classifier yourself (it’s quite straightforward),
+but you may find the function createDataPartition in the R
+package caret helpful to get the random partition.
+
+```{r}
+
+
+##Read data
+wdat <- read.csv("~/Desktop/pima-indians-diabetes.csv", header=FALSE)
+##Import packages
+library(klaR)
+library(caret)
+##Pull Values
+xVals <- wdat[,-c(9)]
+yVals <- wdat[,9]
+##Create arrays for results
+trScore<-array(dim=10)
+Testscore<-array(dim=10)
+for (wi in 1:10)
+{
+##Randomly partition with 80/20 split
+wtd<-createDataPartition(y=yVals, p=.8, list=FALSE)
+##Divide X and Y values
+trainingXindex <- xVals
+trainingX <- trainingXindex[wtd, ]
+trainingY <- yVals[wtd]
+##Check if One or Zero (+/-) by creating flag
+flagCheck <- trainingY > 0
+#If number is greater than 0 it is one, else it is 0. Diving 1/+ and 0/-'s
+isOne <- trainingX[flagCheck, ]
+isZero <- trainingX[!flagCheck,]
+ZeroTestX <- trainingX[-wtd,]
+ZeroTestY <- trainingY[-wtd]
+##Calculating mean and standard deviation for One's and Zero's
+OneTrainingMean <-sapply(isOne, mean, na.rm=TRUE)
+ZeroTrainingMean <-sapply(isZero, mean, na.rm=TRUE)
+OneTrSD <-sapply(isOne, sd, na.rm=TRUE)
+ZeroTrSD <-sapply(isZero, sd, na.rm=TRUE)
+#### Computing logP(X|one) for training example
+OneTrOffsets<-t(t(trainingX)-OneTrainingMean)
+OneTrScales <- t(t(OneTrOffsets)/OneTrSD)
+##Remember this addition
+logPpos <- log(nrow(isOne)/nrow(wtd))
+logPneg <- log(nrow(isZero)/nrow(wtd))
+##Equation used
+PosTrLogs <-- (1/2)*rowSums(apply(OneTrScales,c(1, 2), function(x)x^2), na.rm=TRUE)-sum(log(OneTrSD)) + logPpos
+##Now for logP(X|zero)
+NegTrOffsets<-t(t(trainingX)-ZeroTrainingMean)
+NegTrScales<-t(t(NegTrOffsets)/ZeroTrSD)
+NegTrlogs<--(1/2)*rowSums(apply(NegTrScales,c(1, 2), function(x)x^2), na.rm=TRUE)-sum(log(ZeroTrSD)) + logPneg
+##Let us do some comparisons. We will see what we get correct and determine what is 1 or 0 based on training model and store into training score
+isPostr <- PosTrLogs > NegTrlogs
+gotRight <- isPostr == trainingY
+trScore[wi] <- sum(gotRight)/(sum(gotRight)+sum(!gotRight))
+##Now compute logP(X|one)
+OneTestOffset <- t(t(ZeroTestX)-OneTrainingMean)
+OneTestScales <- t(t(OneTestOffset)/OneTrSD)
+OneRestLog <-- (1/2)*rowSums(apply(OneTestScales,c(1, 2), function(x)x^2), na.rm=TRUE)-sum(log(OneTrSD)) + logPpos
+##Do the same for zero's
+Zeroteoffsets<-t(t(ZeroTestX)-ZeroTrainingMean)
+Zerotescales<-t(t(Zeroteoffsets)/ZeroTrSD)
+Zerotelogs<--(1/2)*rowSums(apply(Zerotescales,c(1, 2), function(x)x^2), na.rm=TRUE)-sum(log(ZeroTrSD)) + logPneg
+##Check if one or zero based on training model
+isPosTest<-OneRestLog>Zerotelogs
+isRight <- isPosTest == ZeroTestY
+##Store result
+Testscore[wi]<-sum(isRight)/(sum(isRight)+sum(!isRight))
+}
+##Display each
+trScore
+Testscore
+##Display means and sd's
+mean(trScore)
+sd(trScore)
+mean(Testscore)
+sd(Testscore)
+```
+
+
+
+b. Now adjust your code so that, for attribute 3 (Diastolic blood pressure),
+attribute 4 (Triceps skin fold thickness), attribute 6 (Body mass index),
+and attribute 8 (Age), it regards a value of 0 as a missing value when
+estimating the class-conditional distributions, and the posterior. R uses
+a special number NA to flag a missing value. Most functions handle this
+number in special, but sensible, ways; but you’ll need to do a bit of looking
+at manuals to check. Does this affect the accuracy of your classifier?
+
+```{r}
+
+##Read data
+wdat <- read.csv("~/Desktop/pima-indians-diabetes.csv", header=FALSE)
+##Import packages
+library(klaR)
+library(caret)
+##Pull Values
+xVals <- wdat[,-c(9)]
+yVals <- wdat[,9]
+##Set
+for (i in c(3, 5, 6, 8))
+{vw<-xVals[, i]==0
+ trainingXindex[vw, i]=NA
+}
+##Create arrays for results
+trScore<-array(dim=10)
+Testscore<-array(dim=10)
+for (wi in 1:10)
+{
+##Randomly partition with 80/20 split
+wtd<-createDataPartition(y=yVals, p=.8, list=FALSE)
+##Divide X and Y values
+trainingXindex <- xVals
+trainingX <- trainingXindex[wtd, ]
+trainingY <- yVals[wtd]
+##Check if One or Zero (+/-) by creating flag
+flagCheck <- trainingY > 0
+#If number is greater than 0 it is one, else it is 0. Diving 1/+ and 0/-'s
+isOne <- trainingX[flagCheck, ]
+isZero <- trainingX[!flagCheck,]
+ZeroTestX <- trainingX[-wtd,]
+ZeroTestY <- trainingY[-wtd]
+##Calculating mean and standard deviation for One's and Zero's
+OneTrainingMean <-sapply(isOne, mean, na.rm=TRUE)
+ZeroTrainingMean <-sapply(isZero, mean, na.rm=TRUE)
+OneTrSD <-sapply(isOne, sd, na.rm=TRUE)
+ZeroTrSD <-sapply(isZero, sd, na.rm=TRUE)
+#### Computing logP(X|one) for training example
+OneTrOffsets<-t(t(trainingX)-OneTrainingMean)
+OneTrScales <- t(t(OneTrOffsets)/OneTrSD)
+##Remember this addition
+logPpos <- log(nrow(isOne)/nrow(wtd))
+logPneg <- log(nrow(isZero)/nrow(wtd))
+##Equation used
+PosTrLogs <-- (1/2)*rowSums(apply(OneTrScales,c(1, 2), function(x)x^2), na.rm=TRUE)-sum(log(OneTrSD)) + logPpos
+##Now for logP(X|zero)
+NegTrOffsets<-t(t(trainingX)-ZeroTrainingMean)
+NegTrScales<-t(t(NegTrOffsets)/ZeroTrSD)
+NegTrlogs<--(1/2)*rowSums(apply(NegTrScales,c(1, 2), function(x)x^2), na.rm=TRUE)-sum(log(ZeroTrSD)) + logPneg
+##Let us do some comparisons. We will see what we get correct and determine what is 1 or 0 based on training model and store into training score
+isPostr <- PosTrLogs > NegTrlogs
+gotRight <- isPostr == trainingY
+trScore[wi] <- sum(gotRight)/(sum(gotRight)+sum(!gotRight))
+##Now compute logP(X|one)
+OneTestOffset <- t(t(ZeroTestX)-OneTrainingMean)
+OneTestScales <- t(t(OneTestOffset)/OneTrSD)
+OneRestLog <-- (1/2)*rowSums(apply(OneTestScales,c(1, 2), function(x)x^2), na.rm=TRUE)-sum(log(OneTrSD)) + logPpos
+##Do the same for zero's
+Zeroteoffsets<-t(t(ZeroTestX)-ZeroTrainingMean)
+Zerotescales<-t(t(Zeroteoffsets)/ZeroTrSD)
+Zerotelogs<--(1/2)*rowSums(apply(Zerotescales,c(1, 2), function(x)x^2), na.rm=TRUE)-sum(log(ZeroTrSD)) + logPneg
+##Check if one or zero based on training model
+isPosTest<-OneRestLog>Zerotelogs
+isRight <- isPosTest == ZeroTestY
+##Store result
+Testscore[wi]<-sum(isRight)/(sum(isRight)+sum(!isRight))
+}
+##Display each
+trScore
+Testscore
+##Display means and sd's
+mean(trScore)
+sd(trScore)
+mean(Testscore)
+sd(Testscore)
+#The accuracy was not greatly affected
+```
+
+c. Now use the caret and klaR packages to build a naive bayes classifier
+for this data, assuming that no attribute has a missing value. The caret
+package does cross-validation (look at train) and can be used to hold out
+data. The klaR package can estimate class-conditional densities using a
+density estimation procedure that I will describe much later in the course.
+Use the cross-validation mechanisms in caret to estimate the accuracy of
+your classifier. I have not been able to persuade the combination of caret
+and klaR to handle missing values the way I’d like them to, but that may
+be ignorance (look at the na.action argument).
+
+```{r, warning = FALSE}
+rm(list=ls())
+
+
+wdat <- read.csv("~/Desktop/pima-indians-diabetes.csv", header=FALSE)
+library(klaR)
+library(caret)
+##Select train with 80/20 split and seperate x and y
+xVals<-wdat[,-c(9)]
+yVals<-as.factor(wdat[,9])
+wtd<-createDataPartition(y=yVals, p=.8, list=FALSE)
+xTraining<-xVals[wtd,]
+yTraining<-yVals[wtd]
+#train
+model<-train(xTraining, yTraining, 'nb', trControl=trainControl(method='cv', number=10))
+teclasses<-predict(model,newdata=xVals[-wtd,])
+#show the confusion matrix for prediction vs actual
+confusionMatrix(data=teclasses, yVals[-wtd])
+
+```
+
+d. Now install SVMLight, which you can find at http://svmlight.joachims.
+org, via the interface in klaR (look for svmlight in the manual) to train
+and evaluate an SVM to classify this data. You don’t need to understand
+much about SVM’s to do this — we’ll do that in following exercises. You
+should hold out 20% of the data for evaluation, and use the other 80% for
+training. You should NOT substitute NA values for zeros for attributes 3,
+4, 6, and 8.
+
+```{r, warning=FALSE}
+rm(list=ls())
+
+
+wdat <- read.csv("~/Desktop/pima-indians-diabetes.csv", header=FALSE)
+library(klaR)
+library(caret)
+##Select train with 80/20 split and seperate x and y
+xVals<-wdat[,-c(9)]
+yVals<-as.factor(wdat[,9])
+wtd<-createDataPartition(y=yVals, p=.8, list=FALSE)
+##Use svm
+svm<-svmlight(xVals[wtd,], yVals[wtd], pathsvm='/Users/rahulsirasao/Downloads/svm_light_osx.8.4_i7/')
+labels<-predict(svm, xVals[-wtd,])
+foo<-labels$class
+sum(foo==yVals[-wtd])/(sum(foo==yVals[-wtd])+sum(!(foo==yVals[-wtd])))
+
+```
+
+## Exercise 3.3 (Heart Disease Classification)
+
+The UC Irvine machine learning data repository hosts a collection of data on
+heart disease. The data was collected and supplied by Andras Janosi, M.D., of
+the Hungarian Institute of Cardiology, Budapest; William Steinbrunn, M.D.,
+of the University Hospital, Zurich, Switzerland; Matthias Pfisterer, M.D., of
+the University Hospital, Basel, Switzerland; and Robert Detrano, M.D., Ph.D.,
+of the V.A. Medical Center, Long Beach and Cleveland Clinic Foundation. You
+can find this data at https://archive.ics.uci.edu/ml/datasets/Heart+Disease.
+Use the processed Cleveland dataset, where there are a total of 303 instances
+with 14 attributes each. The irrelevant attributes described in the text have
+been removed in these. The 14’th attribute is the disease diagnosis. There are
+records with missing attributes, and you should drop these.
+
+(a) Take the disease attribute, and quantize this into two classes, num = 0
+and num > 0. Build and evaluate a naive bayes classifier that predicts
+the class from all other attributes Estimate accuracy by cross-validation.
+You should use at least 10 folds, excluding 15% of the data at random to
+serve as test data, and average the accuracy over those folds. Report the
+mean and standard deviation of the accuracy over the folds.
+
+```{r, warning=FALSE}
+remove(list = ls())
+
+processed.cleveland <- read.csv("~/Desktop/processed.cleveland.csv", header=FALSE)
+library(klaR)
+library(caret)
+##Seperate values
+##Set non numbers as characters then numeric
+processed.cleveland[processed.cleveland$V14>0, "V14"] = 1
+processed.cleveland$V12 = as.character(processed.cleveland$V12)
+processed.cleveland$V13 = as.character(processed.cleveland$V13)
+
+processed.cleveland$V12[processed.cleveland$V12 == "?"] = NA
+processed.cleveland$V13[processed.cleveland$V13 == "?"] = NA 
+processed.cleveland <- na.omit(processed.cleveland)
+
+processed.cleveland$V12 = as.numeric(processed.cleveland$V12)
+processed.cleveland$V13 = as.numeric(processed.cleveland$V13)  
+
+
+xVals<-processed.cleveland[,-c(14)]
+yVals<-as.factor(processed.cleveland[,14])
+
+tesScores <- array(dim=10)
+##Split 15
+for(wi in 1:10){
+  wtd<-createDataPartition(y=yVals, p=.85, list=FALSE)
+  trainX<-xVals[wtd,]
+  trainY<-yVals[wtd]
+  ##Train data
+  model<-train(trainX, trainY, 'nb', trControl=trainControl(method='cv', number=10))
+  teclasses<-predict(model,newdata=xVals[-wtd,])
+  #confusionMatrix(data=teclasses, yVals[-wtd])
+  tesScores[wi] <- sum(teclasses==yVals[-wtd])/(sum(teclasses==yVals[-wtd])+sum(!(teclasses==yVals[-wtd])))
+  
+}
+
+wtd<-createDataPartition(y=yVals, p=.85, list=FALSE)
+trainX<-xVals[wtd,]
+trainY<-yVals[wtd]
+##Train data
+model<-train(trainX, trainY, 'nb', trControl=trainControl(method='cv', number=10))
+teclasses<-predict(model,newdata=xVals[-wtd,])
+confusionMatrix(data=teclasses, yVals[-wtd])
+
+mean(tesScores, na.rm = TRUE)
+sd(tesScores, na.rm = TRUE)
+
+
+
+
+```
+
+(b) Now revise your classifier to predict each of the possible values of the
+disease attribute (0-4 as I recall). Estimate accuracy by cross-validation.
+You should use at least 10 folds, excluding 15% of the data at random to
+serve as test data, and average the accuracy over those folds. Report the
+mean and standard deviation of the accuracy over the folds.
+
+```{r, warning=FALSE}
+rm(list=ls())
+
+processed.cleveland <- read.csv("~/Desktop/processed.cleveland.csv", header=FALSE)
+library(klaR)
+library(caret)
+##Seperate values
+xVals<-processed.cleveland[,-c(14)]
+yVals<-as.factor(processed.cleveland[,14])
+
+##Split 15%
+tesScores <- array(dim=10)
+##Split 15
+for(wi in 1:10){
+  wtd<-createDataPartition(y=yVals, p=.85, list=FALSE)
+  trainX<-xVals[wtd,]
+  trainY<-yVals[wtd]
+  ##Train data
+  model<-train(trainX, trainY, 'nb', trControl=trainControl(method='cv', number=10))
+  teclasses<-predict(model,newdata=xVals[-wtd,])
+  tesScores[wi] <- sum(teclasses==yVals[-wtd])/(sum(teclasses==yVals[-wtd])+sum(!(teclasses==yVals[-wtd])))
+}
+
+mean(tesScores, na.rm = TRUE)
+sd(tesScores, na.rm = TRUE)
+
+```

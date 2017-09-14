@@ -1,0 +1,89 @@
+---
+title: "Chapter 7 Question 11"
+author: "Rahul Sirasao"
+date: "3/5/2017"
+output: html_document
+
+---
+
+######At https://archive.ics.uci.edu/ml/datasets/Abalone, you will find a dataset of measurements by W. J. Nash, T. L. Sellers, S. R. Talbot, A. J. Cawthorn and W. B. Ford, made in 1992. These are a variety of measurements of blacklip abalone (Haliotis rubra; delicious by repute) of various ages and genders.
+
+a. Build a linear regression predicting the age from the measurements, ig- noring gender. Plot the residual against the fitted values.
+
+```{r}
+abalone_data <- read.csv("~/Desktop/abalone.data.csv", header = FALSE)
+#View(abalone_data)
+
+#In R, the lm(), or “linear model,” function can be used to create a simple regression model              Since we are trying to predict age based on measurements (while ignoring gender), it is important that we only consider columns B to H (which correspond to measurments length, diameter, height, and multiple weights) as well as column I which gives us the age. We can assume here than a bigger, meatier plant will be older than a smaller one (however, that is for our graph to portray). Our predictors would be columns B to H.
+
+size_to_age_model = lm(abalone_data$V9 ~ abalone_data$V2 + abalone_data$V3 + abalone_data$V4 + abalone_data$V5 + abalone_data$V6 + abalone_data$V7 + abalone_data$V8, data = abalone_data)
+summary(size_to_age_model) #Let's just check out the summary
+abalone.res = resid(size_to_age_model) #Let us get the residuals
+abalone.predict = predict(size_to_age_model, data.frame(abalone_data[c(1:7)]))
+plot(abalone.predict, abalone.res,pch = 14, cex = .3, col = "pink",xlab="Fitted", ylab="Residuals", main="Residual vs Fitted Values") #Plot
+
+```
+
+b. Build a linear regression predicting the age from the measurements, including gender. There are three levels for gender; I’m not sure whether this has to do with abalone biology or difficulty in determining gender. You can represent gender numerically by choosing 1 for one level, 0 for another, and -1 for the third. Plot the residual against the fitted values.
+
+```{r}
+abalone_data <- read.csv("~/Desktop/abalone.data.csv", header = FALSE)
+abalone_data$V1 <- factor(abalone_data$V1) ##Using factor to create the categorical gender as numeric
+size_to_age_model_gen = lm(abalone_data$V9 ~ abalone_data$V1 + abalone_data$V2 + abalone_data$V3 + abalone_data$V4 + abalone_data$V5 + abalone_data$V6 + abalone_data$V7 + abalone_data$V8, data = abalone_data)
+summary(size_to_age_model_gen) #Let's just check out the summary
+abalone.res = resid(size_to_age_model_gen) #Resids
+abalone.predict = predict(size_to_age_model_gen, data.frame(abalone_data[c(0:7)])) #Include the first (index[0])
+plot(abalone.predict, abalone.res,pch = 10, cex = .3, col = "red",xlab="Fitted", ylab="Residuals", main="Residual vs Fitted Values")
+abline(size_to_age_model_gen, lwd = 3, col = "darkorange") #Let us check out the fitted line to the scatterplot. It looks good and is consistent to the trend!
+
+```
+
+c. Now build a linear regression predicting the log of age from the measurements, ignoring gender. Plot the residual against the fitted values.
+
+```{r}
+#We can use part a again as we are ignoring gender
+abalone_data <- read.csv("~/Desktop/abalone.data.csv", header = FALSE)
+
+size_to_age_model_log = lm(log(abalone_data$V9) ~ abalone_data$V2 + abalone_data$V3 + abalone_data$V4 + abalone_data$V5 + abalone_data$V6 + abalone_data$V7 + abalone_data$V8, data = abalone_data) #Log of Age
+summary(size_to_age_model_log) #Let's just check out the summary
+abalone.res = resid(size_to_age_model_log) #Let us get the residuals
+abalone.predict = predict(size_to_age_model_log, data.frame(abalone_data[c(1:7)]))
+plot(abalone.predict, abalone.res,pch = 14, cex = .3, col = "green",xlab="Fitted", ylab="Residuals", main="Residual vs Fitted Values") #Plot
+
+```
+
+d. Now build a linear regression predicting the log age from the measurements, including gender, represented as above. Plot the residual against the fitted values.
+
+```{r}
+#We can use part b because we are looking at gender
+abalone_data <- read.csv("~/Desktop/abalone.data.csv", header = FALSE)
+abalone_data$V1 <- factor(abalone_data$V1) ##Using factor to create the categorical gender as numeric
+size_to_age_model_genl = lm(log(abalone_data$V9) ~ abalone_data$V1 + abalone_data$V2 + abalone_data$V3 + abalone_data$V4 + abalone_data$V5 + abalone_data$V6 + abalone_data$V7 + abalone_data$V8, data = abalone_data)
+summary(size_to_age_model_genl) #Let's just check out the summary
+abalone.res = resid(size_to_age_model_genl) #Resids
+abalone.predict = predict(size_to_age_model_genl, data.frame(abalone_data[c(0:7)])) #Include the first (index[0])
+plot(abalone.predict, abalone.res,pch = 10, cex = .3, col = "red",xlab="Fitted", ylab="Residuals", main="Residual vs Fitted Values")
+
+```
+
+
+e. It turns out that determining theage of anabalone is possible,but difficult (you section the shell, and count rings). Use your plots to explain which regression you would use to replace this procedure, and why.
+
+```{r}
+#R-squared is a statistical measure of how close the data are to the fitted regression line. Generally, the higher the R-squared....the better the model fits the data! If you see above, I used summary(lm) to display the R^2 values. We will choose the graph with the largest R^2 value to explain which regression we would use to give us the best result. In this scenario we would use plot 4 (look below). This would intuitively also make the most sense as well.
+
+#Graph 1 R^2: 0.5268 
+#Graph 2 R^2: 0.5369 
+#Graph 3 R^2: 0.5848 
+#Graph 4 R^2: 0.5982 
+
+```
+
+f. Can you improve these regressions by using a regularizer? Use glmnet to obtain plots of the cross-validated prediction error.
+
+```{r}
+
+
+```
+
+
